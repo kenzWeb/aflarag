@@ -6,7 +6,7 @@ Key optimizations:
 2. Few-shot prompt for better style matching
 3. Parallel document fetching with asyncio.gather
 4. Retry decorator for LLM errors
-5. Model: Llama 3.2 3B (faster, smaller)
+5. Model: Mistral 7B v0.3 AWQ
 6. repetition_penalty: 1.1 for quality
 """
 
@@ -24,7 +24,7 @@ from tqdm.asyncio import tqdm
 # --- КОНФИГ ---
 API_URL = "http://localhost:8000/v1"
 API_KEY = "EMPTY"
-MODEL_NAME = "hugging-quants/Meta-Llama-3.2-3B-Instruct-AWQ-INT4"
+MODEL_NAME = "MaziyarPanahi/Mistral-7B-Instruct-v0.3-AWQ"
 
 # Retry config
 MAX_RETRIES = 3
