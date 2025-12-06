@@ -25,8 +25,9 @@ services:
       --quantization awq_marlin
       --dtype float16
       --gpu-memory-utilization 0.95
-      --max-model-len 4096
+      --max-model-len 2048
       --tensor-parallel-size 1
       --enable-chunked-prefill
       --enable-prefix-caching
-      --max-num-seqs 256
+      --max-num-seqs 512
+      --disable-log-requests
