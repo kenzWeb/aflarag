@@ -1,4 +1,5 @@
 import os
+import argparse
 import asyncio
 import pandas as pd
 import ast
@@ -21,6 +22,10 @@ COLLECTION_NAME = "documents1"
 
 # Количество одновременных потоков (для T4 и vLLM 30-50 оптимально)
 CONCURRENT_REQUESTS = 100 
+
+# Тестовый режим (True = обработать только TEST_LIMIT вопросов)
+TEST_MODE = False
+TEST_LIMIT = 50 
 
 # Клиенты
 # Qdrant используем асинхронный для неблокирующего I/O
@@ -87,7 +92,7 @@ async def process_row(row, doc_cache, semaphore):
                 context_parts.append(doc_cache[cache_key])
             
         # Ограничиваем контекст (8k токенов модели ~ 20-25k символов, но берем 6k для скорости)
-        full_context = "\n\n".join(context_parts)[:6000]
+        full_context = "\n\n".join(context_parts)[:2500]
         
         # 3. Генерация
         if not full_context.strip():
@@ -117,7 +122,7 @@ async def process_row(row, doc_cache, semaphore):
             print(f"LLM Error q_id={q_id}: {e}")
             return {"q_id": q_id, "answer": "Ошибка генерации"}
 
-async def main():
+async def main(test_mode=False):
     print("--- ЗАПУСК ГЕНЕРАЦИИ (FINAL FIX) ---")
     
     # 1. Загрузка данных
@@ -132,6 +137,10 @@ async def main():
     df = pd.merge(q_df, ids_df, on='q_id', how='left')
     if 'answer' in df.columns and 'retrieved_ids' not in df.columns:
         df.rename(columns={'answer': 'retrieved_ids'}, inplace=True)
+    
+    if test_mode:
+        print(f"⚠️ ТЕСТОВЫЙ РЕЖИМ: Берем только первые {TEST_LIMIT} вопросов")
+        df = df.head(TEST_LIMIT)
     
     print(f"Вопросов к обработке: {len(df)}")
     
@@ -158,8 +167,13 @@ async def main():
     print(f"✅ Файл сохранен: {OUTPUT_CSV}")
 
 if __name__ == "__main__":
+    # Парсинг аргументов
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--test", "--тест", action="store_true", help="Запустить в тестовом режиме (50 вопросов)")
+    args = parser.parse_args()
+
     # Исправление для event loop в некоторых средах
     try:
-        asyncio.run(main())
+        asyncio.run(main(test_mode=args.test))
     except KeyboardInterrupt:
         print("Остановлено пользователем")
