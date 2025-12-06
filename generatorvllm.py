@@ -1,6 +1,7 @@
 import os
 import argparse
 import asyncio
+import re
 import pandas as pd
 import ast
 from openai import AsyncOpenAI
@@ -105,8 +106,7 @@ async def process_row(row, doc_cache, semaphore):
 						"оцени контекст на релевантность от 0 до 10, где 10 - идеальный контекст. "
             "Если релевантность контекста меньше 2 — пиши 'Информации недостаточно' без дополнительных пояснений. "
             "Ответ должен быть кратким (до 3 предложений). "
-            "ОТВЕЧАЙ ТОЛЬКО НА РУССКОМ ЯЗЫКЕ."
-						"НЕ ИСПОЛЬЗУЙ КИТАЙСКИЙ ЯЗЫК"
+            "ВАЖНО: Пиши ТОЛЬКО на русском языке. Запрещено использовать другие языки."
         )
         
         try:
@@ -118,7 +118,7 @@ async def process_row(row, doc_cache, semaphore):
                 ],
                 temperature=0.2,
                 max_tokens=120,
-								extra_body={"min_p": 0.01}
+                extra_body={"min_p": 0.01}
             )
             ans = response.choices[0].message.content.strip()
             return {"q_id": q_id, "answer": ans}
@@ -164,7 +164,7 @@ async def main(test_mode=False):
     final_df = pd.DataFrame(results).sort_values(by='q_id')
     
     # Проверка на пустые ответы перед сохранением
-    empty_count = len(final_df[final_df['answer'] == "Информации недостаточно"])
+    empty_count = len(final_df[final_df['answer'] == "Информации недостаточно."])
     print(f"📊 Статистика: Всего {len(final_df)}, 'Информации недостаточно': {empty_count}")
     
     final_df.to_csv(OUTPUT_CSV, index=False)
