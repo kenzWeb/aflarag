@@ -22,7 +22,7 @@ OUTPUT_CSV = "final/final_su.csv"
 COLLECTION_NAME = "documents1" 
 
 # Количество одновременных потоков (для T4 и vLLM 30-50 оптимально)
-CONCURRENT_REQUESTS = 200 
+CONCURRENT_REQUESTS = 100 
 
 # Тестовый режим (True = обработать только TEST_LIMIT вопросов)
 TEST_MODE = False
@@ -89,7 +89,7 @@ async def process_row(row, doc_cache, semaphore):
             
         # ИСПРАВЛЕНИЕ 1: Оптимизируем контекст для скорости.
         # 7000 символов ~ 2000-2500 токенов. Это оптимальный баланс.
-        full_context = "\n\n".join(context_parts)[:7000] 
+        full_context = "\n\n".join(context_parts)[:5000] 
         
         if not full_context.strip():
             return {"q_id": q_id, "answer": "Информации недостаточно"}
