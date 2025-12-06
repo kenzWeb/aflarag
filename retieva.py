@@ -45,7 +45,7 @@ class Config:
     
     # Vector DB
     # Убедитесь, что имя коллекции совпадает с тем, куда вы загружали данные!
-    COLLECTION_NAME = "alpha_docs_optimized_v2" 
+    COLLECTION_NAME = "documents1" 
     
     # Output
     OUTPUT_FILE = "final/retrieval_debug.csv"
@@ -162,7 +162,7 @@ def retrieve_candidates(query: str, top_k: int) -> List[Dict]:
 def main():
     # Paths
     data_dir = os.getenv("DATA_DIR", "data_final")
-    questions_path = os.path.join(data_dir, "questions.csv")
+    questions_path = os.path.join(data_dir, "questions_clean.csv")
     
     # 1. Load Data
     if not os.path.exists(questions_path):
