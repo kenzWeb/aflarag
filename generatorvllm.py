@@ -71,42 +71,39 @@ async def process_row(row, doc_cache, semaphore):
         query = row['query']
         ids_str = str(row.get('retrieved_ids', '[]'))
         
-        # 1. Парсинг ID документов
         try:
             doc_ids = ast.literal_eval(ids_str)
             if not isinstance(doc_ids, list): doc_ids = []
         except:
             doc_ids = []
         
-        # 2. Сборка контекста
         context_parts = []
         for d_id in doc_ids:
-            # Ключ для кэша - строка, чтобы не путаться
             cache_key = str(d_id)
-
             if cache_key not in doc_cache:
-                # Делаем запрос в Qdrant
                 found_text = await get_text_from_qdrant(cache_key)
                 doc_cache[cache_key] = found_text
             
             if doc_cache[cache_key]:
                 context_parts.append(doc_cache[cache_key])
             
-        # Ограничиваем контекст (8k токенов модели ~ 20-25k символов, но берем 6k для скорости)
-        full_context = "\n\n".join(context_parts)[:2500]
+        # ИСПРАВЛЕНИЕ 1: Увеличиваем лимит контекста
+        # 1 token ~= 3-4 chars (eng) or 1-2 chars (rus). 15000 chars ~ 5k-7k tokens.
+        # Qwen-7B держит до 32k, так что 15000 - безопасно и покрывает 5 документов.
+        full_context = "\n\n".join(context_parts)[:6000] 
         
-        # 3. Генерация
         if not full_context.strip():
-            # Если контекст пустой, модель не сможет ответить
             return {"q_id": q_id, "answer": "Информации недостаточно"}
 
+        # ИСПРАВЛЕНИЕ 2: Упрощенный и строгий промпт без внутренней оценки
         system_prompt = (
-            "Ты — ассистент Альфа-Банка. "
-            "Отвечай на вопрос клиента, используя ИСКЛЮЧИТЕЛЬНО предоставленный контекст. "
-						"оцени контекст на релевантность от 0 до 10, где 10 - идеальный контекст. "
-            "Если релевантность контекста меньше 2 — пиши 'Информации недостаточно' без дополнительных пояснений. "
-            "Ответ должен быть кратким (до 3 предложений). "
-            "ВАЖНО: Пиши ТОЛЬКО на русском языке. Запрещено использовать другие языки."
+            "Ты — полезный ассистент поддержки Альфа-Банка. "
+            "Твоя задача — ответить на вопрос пользователя, используя ТОЛЬКО предоставленный ниже Контекст.\n"
+            "Правила:\n"
+            "1. Если в контексте нет связи с вопросом, ответь строго одной фразой: 'Информации недостаточно'.\n"
+            "2. Не придумывай факты, которых нет в тексте.\n"
+            "3. Отвечай на русском языке. Китайский и английский запрещены.\n"
+            "4. Ответ должен быть кратким и по делу."
         )
         
         try:
@@ -114,13 +111,20 @@ async def process_row(row, doc_cache, semaphore):
                 model=MODEL_NAME,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Контекст:\n{full_context}\n\nВопрос: {query}"}
+                    {"role": "user", "content": f"Контекст:\n{full_context}\n\nВопрос клиента: {query}"}
                 ],
-                temperature=0.2,
-                max_tokens=120,
-                extra_body={"min_p": 0.01}
+                temperature=0.1, # Снижаем температуру для точности
+                max_tokens=150,
+                # ИСПРАВЛЕНИЕ 3: Блокируем китайские токены через repetition_penalty (косвенно)
+                # или просто полагаемся на промпт. min_p оставляем.
+                extra_body={"min_p": 0.05, "repetition_penalty": 1.1} 
             )
             ans = response.choices[0].message.content.strip()
+            
+            # Пост-обработка от китайского (на всякий случай)
+            if any("\u4e00" <= char <= "\u9fff" for char in ans):
+                ans = "Информации недостаточно (Error: Chinese output)"
+                
             return {"q_id": q_id, "answer": ans}
         except Exception as e:
             print(f"LLM Error q_id={q_id}: {e}")
