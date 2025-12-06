@@ -117,8 +117,8 @@ async def process_row(row, doc_cache, semaphore):
                     {"role": "user", "content": f"Контекст:\n{full_context}\n\nВопрос: {query}"}
                 ],
                 temperature=0.7,
-                min_p=0.01,
                 max_tokens=120,
+								extra_body={"min_p": 0.01}
             )
             ans = response.choices[0].message.content.strip()
             return {"q_id": q_id, "answer": ans}
