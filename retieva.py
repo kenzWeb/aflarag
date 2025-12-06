@@ -161,7 +161,7 @@ def retrieve_candidates(query: str, top_k: int) -> List[Dict]:
 
 def main():
     # Paths
-    data_dir = os.getenv("DATA_DIR", "data_final")
+    data_dir = os.getenv("DATA_DIR", "data")
     questions_path = os.path.join(data_dir, "questions_clean.csv")
     
     # 1. Load Data
