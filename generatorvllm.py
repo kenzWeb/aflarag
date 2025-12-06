@@ -3,7 +3,7 @@ import asyncio
 import pandas as pd
 import ast
 from openai import AsyncOpenAI
-from qdrant_client import QdrantClient, models
+from qdrant_client import AsyncQdrantClient, models
 from tqdm.asyncio import tqdm  # pip install tqdm
 
 # --- КОНФИГ ---
@@ -20,21 +20,21 @@ OUTPUT_CSV = "final/final_su.csv"
 COLLECTION_NAME = "documents1" 
 
 # Количество одновременных потоков (для T4 и vLLM 30-50 оптимально)
-CONCURRENT_REQUESTS = 40 
+CONCURRENT_REQUESTS = 100 
 
 # Клиенты
-# Qdrant используем синхронный, он очень быстрый на чтение
-client_qdrant = QdrantClient(url="http://localhost:6333")
+# Qdrant используем асинхронный для неблокирующего I/O
+client_qdrant = AsyncQdrantClient(url="http://localhost:6333")
 aclient = AsyncOpenAI(base_url=API_URL, api_key=API_KEY)
 
-def get_text_from_qdrant(web_id) -> str:
+async def get_text_from_qdrant(web_id) -> str:
     """
-    Извлекает текст чанков.
+    Извлекает текст чанков асинхронно.
     CRITICAL FIX: Принудительно конвертируем ID в строку (str),
     так как в базе они лежат как строки.
     """
     try:
-        points, _ = client_qdrant.scroll(
+        points, _ = await client_qdrant.scroll(
             collection_name=COLLECTION_NAME,
             scroll_filter=models.Filter(
                 must=[
@@ -80,7 +80,7 @@ async def process_row(row, doc_cache, semaphore):
 
             if cache_key not in doc_cache:
                 # Делаем запрос в Qdrant
-                found_text = get_text_from_qdrant(cache_key)
+                found_text = await get_text_from_qdrant(cache_key)
                 doc_cache[cache_key] = found_text
             
             if doc_cache[cache_key]:
