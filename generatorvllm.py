@@ -116,7 +116,8 @@ async def process_row(row, doc_cache, semaphore):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Контекст:\n{full_context}\n\nВопрос: {query}"}
                 ],
-                temperature=0.0,
+                temperature=0.7,
+                min_p=0.01,
                 max_tokens=120,
             )
             ans = response.choices[0].message.content.strip()
