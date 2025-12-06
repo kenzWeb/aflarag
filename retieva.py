@@ -1,5 +1,5 @@
 """
-Retrieval-Only Submission Generator
+Retrieval-Only Submission Generator (Fixed Qdrant API)
 Purpose: Debug retrieval quality without waiting for LLM generation.
 Output: Submission CSV where 'answer' contains the retrieved context chunks.
 Pipeline: Frida Retrieval (Top-100) -> BGE-M3 Reranking (Top-5) -> Context Concatenation
@@ -17,7 +17,7 @@ import torch
 from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
-# Try importing Reranker (Critical for this pipeline)
+# Try importing Reranker
 try:
     from FlagEmbedding import FlagReranker
 except ImportError:
@@ -44,7 +44,6 @@ class Config:
     RERANK_TOP_K_OUTPUT = 5    # Топ-5 самых релевантных для контекста
     
     # Vector DB
-    # Убедитесь, что имя коллекции совпадает с тем, куда вы загружали данные!
     COLLECTION_NAME = "documents1" 
     
     # Output
@@ -96,12 +95,10 @@ class Reranker:
 
     def rerank(self, query: str, candidates: List[str], top_k: int = 5) -> List[Dict[str, Any]]:
         if not self.reranker or not candidates:
-            # Fallback if no reranker
             return [{"text": c, "score": 0.0} for c in candidates[:top_k]]
             
         pairs = [[query, c] for c in candidates]
         
-        # Batch processing to avoid OOM on large lists
         batch_size = 32
         all_scores = []
         
@@ -117,7 +114,7 @@ class Reranker:
         return scored[:top_k]
 
 # ==========================================
-# RETRIEVAL LOGIC
+# RETRIEVAL LOGIC (FIXED)
 # ==========================================
 
 _qdrant_client = None
@@ -134,12 +131,15 @@ def retrieve_candidates(query: str, top_k: int) -> List[Dict]:
     client = get_qdrant_client()
     
     try:
-        hits = client.search(
+        # ЗАМЕНА: Используем query_points вместо search
+        response = client.query_points(
             collection_name=Config.COLLECTION_NAME,
-            query_vector=query_vec,
+            query=query_vec, # В query_points аргумент называется query
             limit=top_k,
             with_payload=True
         )
+        hits = response.points # query_points возвращает объект, точки лежат в .points
+        
     except Exception as e:
         logger.error(f"Qdrant error: {e}")
         return []
@@ -180,7 +180,6 @@ def main():
     start_time = time.time()
     
     # 3. Processing Loop
-    # No batching needed for logic logic, simple iteration is fine for retrieval dump
     for idx, row in questions_df.iterrows():
         q_id = row['q_id']
         query = str(row['query']).strip()
@@ -192,18 +191,14 @@ def main():
         # B. Reranking (Top-5)
         reranked = reranker.rerank(query, cand_texts, top_k=Config.RERANK_TOP_K_OUTPUT)
         
-        # C. Form Context (The "Answer")
-        # Собираем контекст так же, как он пойдет в LLM
+        # C. Form Context
         final_texts = [r['text'] for r in reranked]
         
         if not final_texts:
             answer_text = "Информации недостаточно (Context Empty)"
         else:
-            # Склеиваем через разделитель для наглядности в CSV
+            # Склеиваем через разделитель для наглядности
             answer_text = "\n\n--- CHUNK ---\n\n".join(final_texts)
-            
-            # Добавляем скоры для отладки (опционально)
-            # answer_text += f"\n\n[Best Score: {reranked[0]['score']:.4f}]"
 
         results.append({
             "q_id": q_id,
