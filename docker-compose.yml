@@ -24,7 +24,9 @@ services:
       --model hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4
       --quantization awq_marlin
       --dtype float16
-      --gpu-memory-utilization 0.85
-      --max-model-len 8192
+      --gpu-memory-utilization 0.95
+      --max-model-len 4096
       --tensor-parallel-size 1
-      --enforce-eager
+      --enable-chunked-prefill
+      --enable-prefix-caching
+      --max-num-seqs 256
