@@ -11,7 +11,7 @@ from tqdm.asyncio import tqdm  # pip install tqdm
 # --- КОНФИГ ---
 API_URL = "http://localhost:8000/v1"
 API_KEY = "EMPTY"
-MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct-AWQ"
+MODEL_NAME = "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4"
 
 DATA_DIR = os.getenv("DATA_DIR", "data")
 QUESTIONS_CSV = os.path.join(DATA_DIR, "questions_clean.csv")
