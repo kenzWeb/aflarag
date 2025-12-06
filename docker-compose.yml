@@ -11,7 +11,7 @@ services:
       # Прокидываем кэш, чтобы не качать модель при каждом перезапуске
       - ~/.cache/huggingface:/root/.cache/huggingface
     ports:
-      - "8000:8000"
+      - '8000:8000'
     deploy:
       resources:
         reservations:
@@ -21,7 +21,7 @@ services:
               capabilities: [gpu]
     ipc: host
     command: >
-      --model Qwen/Qwen2.5-7B-Instruct-AWQ
+      --model hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4
       --quantization awq_marlin
       --dtype float16
       --gpu-memory-utilization 0.85
