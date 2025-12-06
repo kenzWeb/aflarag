@@ -22,7 +22,7 @@ services:
     ipc: host
     command: >
       --model Qwen/Qwen2.5-14B-Instruct-AWQ
-      --quantization awq
+      --quantization awq_marlin
       --dtype float16
       --gpu-memory-utilization 0.85
       --max-model-len 8192
