@@ -1,0 +1,30 @@
+#version: '3.8'
+
+services:
+  vllm-server:
+    image: vllm/vllm-openai:latest
+    container_name: alpha_rag_vllm
+    runtime: nvidia
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN} # Опционально, если есть токен
+    volumes:
+      # Прокидываем кэш, чтобы не качать модель при каждом перезапуске
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ipc: host
+    command: >
+      --model Qwen/Qwen2.5-14B-Instruct-AWQ
+      --quantization awq
+      --dtype float16
+      --gpu-memory-utilization 0.85
+      --max-model-len 8192
+      --tensor-parallel-size 1
+      --enforce-eager
