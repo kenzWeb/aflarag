@@ -90,7 +90,7 @@ async def process_row(row, doc_cache, semaphore):
         # ИСПРАВЛЕНИЕ 1: Увеличиваем лимит контекста
         # 1 token ~= 3-4 chars (eng) or 1-2 chars (rus). 15000 chars ~ 5k-7k tokens.
         # Qwen-7B держит до 32k, так что 15000 - безопасно и покрывает 5 документов.
-        full_context = "\n\n".join(context_parts)[:6000] 
+        full_context = "\n\n".join(context_parts)[:12000] 
         
         if not full_context.strip():
             return {"q_id": q_id, "answer": "Информации недостаточно"}
