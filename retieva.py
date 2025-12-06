@@ -43,7 +43,7 @@ class Config:
     RERANK_TOP_K_OUTPUT = 5    # Оставляем топ-5 ID
     
     # Vector DB
-    COLLECTION_NAME = "alpha_docs_optimized_v2" 
+    COLLECTION_NAME = "documents1" 
     
     # Output
     OUTPUT_FILE = "final/submission_ids.csv"
