@@ -24,7 +24,7 @@ from tqdm.asyncio import tqdm
 # --- КОНФИГ ---
 API_URL = "http://localhost:8000/v1"
 API_KEY = "EMPTY"
-MODEL_NAME = "MaziyarPanahi/Mistral-7B-Instruct-v0.3-AWQ"
+MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
 
 # Retry config
 MAX_RETRIES = 3

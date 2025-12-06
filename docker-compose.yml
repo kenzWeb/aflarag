@@ -21,8 +21,7 @@ services:
               capabilities: [gpu]
     ipc: host
     command: >
-      --model MaziyarPanahi/Mistral-7B-Instruct-v0.3-AWQ
-      --quantization awq
+      --model microsoft/Phi-3.5-mini-instruct
       --dtype float16
       --gpu-memory-utilization 0.95
       --max-model-len 4096
