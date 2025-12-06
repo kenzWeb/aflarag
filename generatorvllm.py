@@ -51,7 +51,7 @@ async def get_text_from_qdrant(web_id) -> str:
                     )
                 ]
             ),
-            limit=10, # Берем до 10 чанков одного документа (если он большой)
+            limit=50, # Берем до 10 чанков одного документа (если он большой)
             with_payload=True, 
             with_vectors=False
         )
@@ -90,7 +90,7 @@ async def process_row(row, doc_cache, semaphore):
         # ИСПРАВЛЕНИЕ 1: Увеличиваем лимит контекста
         # 1 token ~= 3-4 chars (eng) or 1-2 chars (rus). 15000 chars ~ 5k-7k tokens.
         # Qwen-7B держит до 32k, так что 15000 - безопасно и покрывает 5 документов.
-        full_context = "\n\n".join(context_parts)[:12000] 
+        full_context = "\n\n".join(context_parts)[:15000] 
         
         if not full_context.strip():
             return {"q_id": q_id, "answer": "Информации недостаточно"}
