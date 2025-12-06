@@ -12,7 +12,7 @@ MODEL_NAME = "Qwen/Qwen2.5-14B-Instruct-AWQ"
 
 # Файлы
 DATA_DIR = os.getenv("DATA_DIR", "data")
-QUESTIONS_CSV = os.path.join(DATA_DIR, "questions.csv")
+QUESTIONS_CSV = os.path.join(DATA_DIR, "questions_clean.csv")
 IDS_CSV = "final/submission_ids.csv"
 OUTPUT_CSV = "final/final_su.csv"
 
