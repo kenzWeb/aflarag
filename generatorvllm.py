@@ -9,7 +9,7 @@ from tqdm.asyncio import tqdm  # pip install tqdm
 # --- КОНФИГ ---
 API_URL = "http://localhost:8000/v1"
 API_KEY = "EMPTY"
-MODEL_NAME = "Qwen/Qwen2.5-14B-Instruct-AWQ"
+MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct-AWQ"
 
 DATA_DIR = os.getenv("DATA_DIR", "data")
 QUESTIONS_CSV = os.path.join(DATA_DIR, "questions_clean.csv")
@@ -109,7 +109,7 @@ async def process_row(row, doc_cache, semaphore):
                     {"role": "user", "content": f"Контекст:\n{full_context}\n\nВопрос: {query}"}
                 ],
                 temperature=0.0,
-                max_tokens=250,
+                max_tokens=120,
             )
             ans = response.choices[0].message.content.strip()
             return {"q_id": q_id, "answer": ans}
