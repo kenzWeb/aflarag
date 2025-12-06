@@ -1,11 +1,13 @@
 """
-Optimized RAG Generator v2
+Optimized RAG Generator v3
 Target: 200+ tokens/sec throughput
 Key optimizations:
 1. Batch prefetch all documents BEFORE generation
-2. Minimal system prompt
+2. Few-shot prompt for better style matching
 3. Parallel document fetching with asyncio.gather
-4. Connection pooling via httpx
+4. Retry decorator for LLM errors
+5. Model: Llama 3.2 3B (faster, smaller)
+6. repetition_penalty: 1.1 for quality
 """
 
 import os
@@ -14,15 +16,19 @@ import asyncio
 import re
 import pandas as pd
 import ast
+from functools import wraps
 from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient, models
 from tqdm.asyncio import tqdm
-from collections import defaultdict
 
 # --- КОНФИГ ---
 API_URL = "http://localhost:8000/v1"
 API_KEY = "EMPTY"
-MODEL_NAME = "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4"
+MODEL_NAME = "hugging-quants/Meta-Llama-3.2-3B-Instruct-AWQ-INT4"
+
+# Retry config
+MAX_RETRIES = 3
+RETRY_DELAY = 0.5
 
 DATA_DIR = os.getenv("DATA_DIR", "data")
 QUESTIONS_CSV = os.path.join(DATA_DIR, "questions_clean.csv")
@@ -43,11 +49,38 @@ TEST_LIMIT = 50
 client_qdrant = AsyncQdrantClient(url="http://localhost:6333")
 aclient = AsyncOpenAI(base_url=API_URL, api_key=API_KEY)
 
-# ОПТИМИЗАЦИЯ 1: Минимальный промпт (экономия ~50 токенов на запрос)
-SYSTEM_PROMPT = (
-    "Ты ассистент Альфа-Банка. Отвечай кратко по контексту. "
-    "Нет информации — пиши 'Информации недостаточно'. Только русский язык."
-)
+# Улучшенный промпт с few-shot примерами для лучшего стиля
+SYSTEM_PROMPT = """Ты — ассистент поддержки Альфа-Банка. Отвечай на вопрос клиента строго по контексту.
+
+Правила:
+- Ответ: 2-3 предложения, кратко и по делу
+- Нет информации в контексте → отвечай только: "Информации недостаточно"
+- Язык: только русский
+
+Примеры:
+Вопрос: Как узнать номер счета?
+Ответ: Номер счета указан в разделе договора с реквизитами. Также его можно найти в мобильном приложении в разделе "Счета".
+
+Вопрос: Почему не приходят СМС?
+Ответ: Возможно, вы включили подтверждение через секретный код в приложении. Проверьте настройки уведомлений в профиле."""
+
+
+def async_retry(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
+    """Decorator for async retry on failure"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    last_error = e
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(delay * (attempt + 1))
+            raise last_error
+        return wrapper
+    return decorator
 
 
 async def fetch_single_doc(doc_id: str) -> tuple[str, str]:
@@ -63,7 +96,7 @@ async def fetch_single_doc(doc_id: str) -> tuple[str, str]:
                     )
                 ]
             ),
-            limit=10,  # Меньше чанков = быстрее
+            limit=20,  # Увеличено для полноты контекста
             with_payload=True,
             with_vectors=False
         )
@@ -125,36 +158,43 @@ async def process_row(row, doc_cache: dict, semaphore: asyncio.Semaphore):
         
         # ОПТИМИЗАЦИЯ 4: Меньше контекста = быстрее prefill
         # 4000 символов ~ 1200-1500 токенов — достаточно для ответа
-        full_context = "\n\n".join(context_parts)[:4000]
+        full_context = "\n\n".join(context_parts)[:5000]
         
         if not full_context.strip():
             return {"q_id": q_id, "answer": "Информации недостаточно"}
         
         try:
-            response = await aclient.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Контекст:\n{full_context}\n\nВопрос: {query}"}
-                ],
-                temperature=0.1,
-                max_tokens=100,  # Короче ответ = быстрее decode
-                extra_body={"min_p": 0.05}
-            )
-            ans = response.choices[0].message.content.strip()
-            
-            # Фильтр китайского
-            if any("\u4e00" <= char <= "\u9fff" for char in ans):
-                ans = "Информации недостаточно"
-            
+            ans = await generate_answer(query, full_context)
             return {"q_id": q_id, "answer": ans}
         except Exception as e:
             print(f"LLM Error q_id={q_id}: {e}")
             return {"q_id": q_id, "answer": "Ошибка генерации"}
 
 
+@async_retry(max_retries=MAX_RETRIES)
+async def generate_answer(query: str, context: str) -> str:
+    """Generate answer with retry logic"""
+    response = await aclient.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Контекст:\n{context}\n\nВопрос клиента: {query}"}
+        ],
+        temperature=0.1,
+        max_tokens=120,
+        extra_body={"min_p": 0.05, "repetition_penalty": 1.1}
+    )
+    ans = response.choices[0].message.content.strip()
+    
+    # Фильтр китайского
+    if any("\u4e00" <= char <= "\u9fff" for char in ans):
+        return "Информации недостаточно"
+    
+    return ans
+
+
 async def main(test_mode=False):
-    print("=== OPTIMIZED RAG GENERATOR v2 ===")
+    print("=== OPTIMIZED RAG GENERATOR v3 ===")
     
     # 1. Загрузка данных
     if not os.path.exists(QUESTIONS_CSV) or not os.path.exists(IDS_CSV):
