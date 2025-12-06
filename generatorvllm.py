@@ -22,7 +22,7 @@ OUTPUT_CSV = "final/final_su.csv"
 COLLECTION_NAME = "documents1" 
 
 # Количество одновременных потоков (для T4 и vLLM 30-50 оптимально)
-CONCURRENT_REQUESTS = 100 
+CONCURRENT_REQUESTS = 200 
 
 # Тестовый режим (True = обработать только TEST_LIMIT вопросов)
 TEST_MODE = False
@@ -51,7 +51,7 @@ async def get_text_from_qdrant(web_id) -> str:
                     )
                 ]
             ),
-            limit=50, # Берем до 10 чанков одного документа (если он большой)
+            limit=20, # Берем до 20 чанков (оптимизация скорости)
             with_payload=True, 
             with_vectors=False
         )
@@ -87,10 +87,9 @@ async def process_row(row, doc_cache, semaphore):
             if doc_cache[cache_key]:
                 context_parts.append(doc_cache[cache_key])
             
-        # ИСПРАВЛЕНИЕ 1: Увеличиваем лимит контекста
-        # 1 token ~= 3-4 chars (eng) or 1-2 chars (rus). 15000 chars ~ 5k-7k tokens.
-        # Qwen-7B держит до 32k, так что 15000 - безопасно и покрывает 5 документов.
-        full_context = "\n\n".join(context_parts)[:15000] 
+        # ИСПРАВЛЕНИЕ 1: Оптимизируем контекст для скорости.
+        # 7000 символов ~ 2000-2500 токенов. Это оптимальный баланс.
+        full_context = "\n\n".join(context_parts)[:7000] 
         
         if not full_context.strip():
             return {"q_id": q_id, "answer": "Информации недостаточно"}
