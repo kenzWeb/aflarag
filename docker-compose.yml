@@ -17,16 +17,17 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: all
               capabilities: [gpu]
     ipc: host
     command: >
-      --model microsoft/Phi-3.5-mini-instruct
+      --model Qwen/Qwen2.5-32B-Instruct-AWQ
+      --quantization awq
       --dtype float16
       --gpu-memory-utilization 0.95
-      --max-model-len 4096
-      --tensor-parallel-size 1
+      --max-model-len 8192
+      --tensor-parallel-size 2
       --enable-chunked-prefill
       --enable-prefix-caching
-      --max-num-seqs 512
+      --max-num-seqs 256
       --disable-log-requests

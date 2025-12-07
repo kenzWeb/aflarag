@@ -24,7 +24,7 @@ from tqdm.asyncio import tqdm
 # --- КОНФИГ ---
 API_URL = "http://localhost:8000/v1"
 API_KEY = "EMPTY"
-MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
+MODEL_NAME = "Qwen/Qwen2.5-32B-Instruct-AWQ"
 
 # Retry config
 MAX_RETRIES = 3
@@ -38,7 +38,7 @@ OUTPUT_CSV = "final/final_su.csv"
 COLLECTION_NAME = "documents1"
 
 # ОПТИМИЗАЦИЯ: Увеличиваем concurrency, т.к. prefetch убирает bottleneck
-CONCURRENT_REQUESTS = 256
+CONCURRENT_REQUESTS = 512
 QDRANT_BATCH_SIZE = 100  # Batch fetching from Qdrant
 
 # Тестовый режим
@@ -159,7 +159,7 @@ async def process_row(row, doc_cache: dict, semaphore: asyncio.Semaphore):
         
         # ОПТИМИЗАЦИЯ 4: Меньше контекста = быстрее prefill
         # 4000 символов ~ 1200-1500 токенов — достаточно для ответа
-        full_context = "\n\n".join(context_parts)[:5000]
+        full_context = "\n\n".join(context_parts)[:12000]
         
         if not full_context.strip():
             return {"q_id": q_id, "answer": "Информации недостаточно"}
@@ -182,7 +182,7 @@ async def generate_answer(query: str, context: str) -> str:
             {"role": "user", "content": f"Контекст:\n{context}\n\nВопрос клиента: {query}"}
         ],
         temperature=0.1,
-        max_tokens=120,
+        max_tokens=200,
         extra_body={"min_p": 0.05, "repetition_penalty": 1.1}
     )
     ans = response.choices[0].message.content.strip()
