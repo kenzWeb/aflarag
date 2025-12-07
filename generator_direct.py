@@ -33,7 +33,7 @@ QUESTIONS_CSV = os.path.join(DATA_DIR, "questions_clean.csv")
 IDS_CSV = "final/submission_ids.csv"
 OUTPUT_CSV = "final/final_su.csv"
 COLLECTION_NAME = "documents1"
-QDRANT_URL = "http://localhost:6333" # Qdrant должен быть запущен (можно в докере или локально)
+QDRANT_URL = "http://158.160.208.30:6333" # Qdrant должен быть запущен (можно в докере или локально)
 
 SYSTEM_PROMPT = """Ты — эксперт поддержки Альфа-Банка.
 Твоя задача: ответить на вопрос клиента, используя ТОЛЬКО предоставленный контекст.
